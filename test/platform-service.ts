@@ -454,7 +454,6 @@ describe('Platform Service Tests', () => {
 
 			const projectData = testInjector.resolve("projectData");
 			projectData.projectDir = testDirData.tempFolder;
-			projectData.appDirectoryPath = testDirData.appFolderPath;
 			projectData.projectName = "app";
 
 			platformService = testInjector.resolve("platformService");

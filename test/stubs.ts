@@ -253,7 +253,9 @@ export class ProjectDataStub implements IProjectData {
 	projectFilePath: string;
 	projectId: string;
 	dependencies: any;
-	appDirectoryPath: string;
+	get appDirectoryPath(): string {
+		return this.getAppDirectoryPath();
+	}
 	devDependencies: IStringDictionary;
 	projectType: string;
 	get appResourcesDirectoryPath(): string {
@@ -281,6 +283,13 @@ export class ProjectDataStub implements IProjectData {
 		}
 
 		return absoluteAppResourcesDirPath || path.join(projectDir, constants.APP_FOLDER_NAME, constants.APP_RESOURCES_FOLDER_NAME);
+	}
+	public getAppDirectoryPath(projectDir?: string): string {
+		if (!projectDir) {
+			projectDir = this.projectDir;
+		}
+
+		return path.join(projectDir, "app") || "";
 	}
 }
 

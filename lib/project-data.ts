@@ -32,7 +32,9 @@ export class ProjectData implements IProjectData {
 	public projectFilePath: string;
 	public projectId: string;
 	public projectName: string;
-	public appDirectoryPath: string;
+	get appDirectoryPath(): string {
+		return this.getAppDirectoryPath();
+	}
 	get appResourcesDirectoryPath(): string {
 		return this.getAppResourcesDirectoryPath();
 	}
@@ -70,7 +72,6 @@ export class ProjectData implements IProjectData {
 					this.projectName = this.$projectHelper.sanitizeName(path.basename(projectDir));
 					this.platformsDir = path.join(projectDir, constants.PLATFORMS_DIR_NAME);
 					this.projectFilePath = projectFilePath;
-					this.appDirectoryPath = path.join(projectDir, constants.APP_FOLDER_NAME);
 					this.projectId = data.id;
 					this.dependencies = fileContent.dependencies;
 					this.devDependencies = fileContent.devDependencies;
@@ -93,20 +94,43 @@ export class ProjectData implements IProjectData {
 			projectDir = this.projectDir;
 		}
 
-		const configNSFilePath = path.join(projectDir, constants.CONFIG_NS_FILE_NAME);
+		const configNS = this.getNsConfig(projectDir);
 		let absoluteAppResourcesDirPath: string;
 
-		if (this.$fs.exists(configNSFilePath)) {
-			const configNS = this.$fs.readJson(configNSFilePath);
+		if (configNS && configNS[constants.CONFIG_NS_APP_RESOURCES_ENTRY]) {
+			const appResourcesDirPath = configNS[constants.CONFIG_NS_APP_RESOURCES_ENTRY];
 
-			if (configNS && configNS[constants.CONFIG_NS_APP_RESOURCES_ENTRY]) {
-				const appResourcesDirPath = configNS[constants.CONFIG_NS_APP_RESOURCES_ENTRY];
-
-				absoluteAppResourcesDirPath = path.resolve(projectDir, appResourcesDirPath);
-			}
+			absoluteAppResourcesDirPath = path.resolve(projectDir, appResourcesDirPath);
 		}
 
-		return absoluteAppResourcesDirPath || path.join(projectDir, constants.APP_FOLDER_NAME, constants.APP_RESOURCES_FOLDER_NAME);
+		return absoluteAppResourcesDirPath || path.join(this.getAppDirectoryPath(projectDir), constants.APP_RESOURCES_FOLDER_NAME);
+	}
+
+	public getAppDirectoryPath(projectDir?: string): string {
+		if (!projectDir) {
+			projectDir = this.projectDir;
+		}
+
+		const configNS = this.getNsConfig(projectDir);
+		let absoluteAppDirPath: string;
+
+		if (configNS && configNS[constants.CONFIG_NS_APP_ENTRY]) {
+			const appDirPath = configNS[constants.CONFIG_NS_APP_ENTRY];
+
+			absoluteAppDirPath = path.resolve(projectDir, appDirPath);
+		}
+
+		return absoluteAppDirPath || path.join(projectDir, constants.APP_FOLDER_NAME);
+	}
+
+	private getNsConfig(projectDir: string): Object {
+		const configNSFilePath = path.join(projectDir, constants.CONFIG_NS_FILE_NAME);
+
+		if (!this.$fs.exists(configNSFilePath)) {
+			return null;
+		}
+
+		return this.$fs.readJson(configNSFilePath);
 	}
 
 	private getProjectType(): string {
