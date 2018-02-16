@@ -49,6 +49,8 @@ export class LiveSyncService extends EventEmitter implements IDebugLiveSyncServi
 	}
 
 	public async stopLiveSync(projectDir: string, deviceIdentifiers?: string[], stopOptions?: { shouldAwaitAllActions: boolean }): Promise<void> {
+		console.log("STOP LiveSync called", projectDir, deviceIdentifiers, stopOptions);
+
 		const liveSyncProcessInfo = this.liveSyncProcessesInfo[projectDir];
 
 		if (liveSyncProcessInfo) {
@@ -632,6 +634,7 @@ export class LiveSyncService extends EventEmitter implements IDebugLiveSyncServi
 
 			const watcher = choki.watch(patterns, watcherOptions)
 				.on("all", async (event: string, filePath: string) => {
+					console.log(`Chokidar raised event ${event} for ${filePath}.`);
 					clearTimeout(timeoutTimer);
 
 					filePath = path.join(liveSyncData.projectDir, filePath);
@@ -649,6 +652,11 @@ export class LiveSyncService extends EventEmitter implements IDebugLiveSyncServi
 						startTimeout();
 					}
 				});
+
+			watcher.on("error", async (err: Error) => {
+				console.log("ERROR in watcher: ", err);
+				await this.stopLiveSync(projectData.projectDir);
+			});
 
 			this.liveSyncProcessesInfo[liveSyncData.projectDir].watcherInfo = { watcher, patterns };
 			this.liveSyncProcessesInfo[liveSyncData.projectDir].timer = timeoutTimer;
