@@ -118,6 +118,38 @@ export class ExtensibilityService implements IExtensibilityService {
 		return jsonData;
 	}
 
+	public async getExtensionNameToInstallToAccessCommand(commandName: string, commandArguments: string[]): Promise<{extensionName: string, registeredCommandName: string}> {
+		const npmsResult = await this.$npm.searchNpms("nativescript:extension");
+		const allExtensions = npmsResult.results || []
+		if (allExtensions.length) {
+			const fullArgs = [commandName].concat(...commandArguments);
+			for (const extensionData of allExtensions) {
+				const extensionName = extensionData.package.name;
+				// now get full package.json for the latest version of the package
+				const registryData = await this.$npm.getRegistryPackageData(extensionName);
+				const latestPackageData = registryData.versions[registryData["dist-tags"].latest];
+				const commands: string[] = latestPackageData && latestPackageData.nativescript && latestPackageData.nativescript.commands;
+				if (commands) {
+					let copyOfFullArgs = _.clone(fullArgs);
+					while (copyOfFullArgs.length) {
+						const currentCommand = copyOfFullArgs.join("|").toLowerCase();
+
+						if (_.some(commands, c => c.toLowerCase() === currentCommand)) {
+							return {
+								extensionName,
+								registeredCommandName: currentCommand
+							}
+						}
+
+						copyOfFullArgs.splice(-1, 1);
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
 	private async assertExtensionIsInstalled(extensionName: string): Promise<void> {
 		this.$logger.trace(`Asserting extension ${extensionName} is installed.`);
 		const installedExtensions = this.$fs.readDirectory(path.join(this.pathToExtensions, constants.NODE_MODULES_FOLDER_NAME));

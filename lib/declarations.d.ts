@@ -32,6 +32,10 @@ interface INodePackageManager {
 	 * @return {Promise<string>}                The output of the uninstallation.
 	 */
 	search(filter: string[], config: IDictionary<string | boolean>): Promise<string>;
+
+	searchNpms(keyword: string): Promise<INpmsResult>;
+
+	getRegistryPackageData(packageName: string): Promise<any>;
 }
 
 interface INpmInstallationManager {
@@ -304,6 +308,57 @@ interface IDependencyData {
 	 * Dependencies of the current module.
 	 */
 	dependencies?: string[];
+}
+
+interface INpmsResult {
+	total: number;
+	results: INpmsSingleResultData[];
+}
+
+interface INpmsSingleResultData {
+	package: INpmsPackageData;
+	flags: INpmsFlags;
+	score: INpmsScore;
+	searchScore: number;
+}
+
+interface INpmsPackageData {
+	name: string;
+	// unscoped in case package is not in a scope
+	// scope name in case part of a scope "angular" for example for @angular/core
+	scope: string;
+	version: string;
+	description: string;
+	keywords: string[];
+	date: string;
+	links: { npm: string };
+	author: { name: string };
+	publisher: INpmsUser;
+	maintainers: INpmsUser[];
+}
+
+interface IUsername {
+	username: string;
+}
+
+interface INpmsUser extends IUsername {
+	email: string;
+}
+
+interface INpmsFlags {
+	unstable: boolean;
+	insecure: number;
+	// Describes the reason for deprecation.
+	deprecated: string;
+}
+
+interface INpmsScore {
+	final: number;
+	detail: {
+		quality: number;
+		popularity: number;
+		maintenance: number;
+	}
 }
 
 interface IStaticConfig extends Config.IStaticConfig { }
