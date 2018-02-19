@@ -7,6 +7,7 @@ import { DeviceAndroidDebugBridge } from "../common/mobile/android/device-androi
 import { attachAwaitDetach } from "../common/helpers";
 import { Configurations } from "../common/constants";
 import { SpawnOptions } from "child_process";
+import { buildAar, migrateIncludeGradle, BuildAarOptions } from "plugin-migrator";
 
 export class AndroidProjectService extends projectServiceBaseLib.PlatformProjectServiceBase implements IPlatformProjectService {
 	private static VALUES_DIRNAME = "values";
@@ -418,9 +419,26 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 	}
 
 	public async preparePluginNativeCode(pluginData: IPluginData, projectData: IProjectData): Promise<void> {
-		if (!this.shouldUseNewRuntimeGradleRoutine(projectData)) {
+		if (!this.runtimeVersionIsGreaterThanOrEquals(projectData, "3.3.0")) {
 			const pluginPlatformsFolderPath = this.getPluginPlatformsFolderPath(pluginData, AndroidProjectService.ANDROID_PLATFORM_NAME);
 			await this.processResourcesFromPlugin(pluginData, pluginPlatformsFolderPath, projectData);
+		} else if (this.runtimeVersionIsGreaterThanOrEquals(projectData, "4.0.0")) {
+			// build Android plugins which contain AndroidManifest.xml and/or resources
+			const pluginPlatformsFolderPath = this.getPluginPlatformsFolderPath(pluginData, AndroidProjectService.ANDROID_PLATFORM_NAME);
+			if (this.$fs.exists(pluginPlatformsFolderPath)) {
+				let options: BuildAarOptions = {
+					pluginName: pluginData.name,
+					platformsAndroidDirPath: pluginPlatformsFolderPath,
+					aarOutputDir: pluginPlatformsFolderPath,
+					tempPluginDirPath: path.join(projectData.platformsDir, "tempPlugin")
+				}
+
+				if (await buildAar(options)) {
+					this.$logger.info(`Built aar for ${pluginData.name}`);
+				}
+
+				migrateIncludeGradle(options);
+			}
 		}
 
 		// Do nothing, the Android Gradle script will configure itself based on the input dependencies.json
@@ -463,9 +481,9 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 	public async removePluginNativeCode(pluginData: IPluginData, projectData: IProjectData): Promise<void> {
 		try {
 			// check whether the dependency that's being removed has native code
-			// TODO: Remove prior to the 4.0 CLI release @Pip3r4o @PanayotCankov
+			// TODO: Remove prior to the 4.1 CLI release @Pip3r4o @PanayotCankov
 			// the updated gradle script will take care of cleaning the prepared android plugins
-			if (!this.shouldUseNewRuntimeGradleRoutine(projectData)) {
+			if (!this.runtimeVersionIsGreaterThanOrEquals(projectData, "3.3.0")) {
 				const pluginConfigDir = path.join(this.getPlatformData(projectData).projectRoot, "configurations", pluginData.name);
 				if (this.$fs.exists(pluginConfigDir)) {
 					await this.cleanProject(this.getPlatformData(projectData).projectRoot, projectData);
@@ -485,14 +503,14 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 	}
 
 	public async beforePrepareAllPlugins(projectData: IProjectData, dependencies?: IDependencyData[]): Promise<void> {
-		const shouldUseNewRoutine = this.shouldUseNewRuntimeGradleRoutine(projectData);
+		const shouldUseNewRoutine = this.runtimeVersionIsGreaterThanOrEquals(projectData, "3.3.0");
 
 		if (dependencies) {
 			dependencies = this.filterUniqueDependencies(dependencies);
 			if (shouldUseNewRoutine) {
 				this.provideDependenciesJson(projectData, dependencies);
 			} else {
-				// TODO: Remove prior to the 4.0 CLI release @Pip3r4o @PanayotCankov
+				// TODO: Remove prior to the 4.1 CLI release @Pip3r4o @PanayotCankov
 
 				const platformDir = path.join(projectData.platformsDir, AndroidProjectService.ANDROID_PLATFORM_NAME);
 				const buildDir = path.join(platformDir, "build-tools");
@@ -633,15 +651,6 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 		}
 	}
 
-	// TODO: Remove prior to the 4.0 CLI release @Pip3r4o @PanayotCankov
-	private shouldUseNewRuntimeGradleRoutine(projectData: IProjectData): boolean {
-		const platformVersion = this.getCurrentPlatformVersion(this.getPlatformData(projectData), projectData);
-		const newRuntimeGradleRoutineVersion = "3.3.0";
-
-		const normalizedPlatformVersion = `${semver.major(platformVersion)}.${semver.minor(platformVersion)}.0`;
-		return semver.gte(normalizedPlatformVersion, newRuntimeGradleRoutineVersion);
-	}
-
 	private isAndroidStudioCompatibleTemplate(projectData: IProjectData): boolean {
 		const currentPlatformData: IDictionary<any> = this.$projectDataService.getNSValue(projectData.projectDir, constants.TNS_ANDROID_RUNTIME_NAME);
 		let platformVersion = currentPlatformData && currentPlatformData[constants.VERSION_STRING];
@@ -666,6 +675,17 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 		const normalizedPlatformVersion = `${semver.major(platformVersion)}.${semver.minor(platformVersion)}.0`;
 
 		return semver.gte(normalizedPlatformVersion, androidStudioCompatibleTemplate);
+	}
+
+	private runtimeVersionIsGreaterThanOrEquals(projectData: IProjectData, versionString: string): boolean {
+		const platformVersion = this.getCurrentPlatformVersion(this.getPlatformData(projectData), projectData);
+
+		if (platformVersion === constants.PackageVersion.NEXT) {
+			return true;
+		}
+
+		const normalizedPlatformVersion = `${semver.major(platformVersion)}.${semver.minor(platformVersion)}.0`;
+		return semver.gte(normalizedPlatformVersion, versionString);
 	}
 }
 

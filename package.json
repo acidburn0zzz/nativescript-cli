@@ -61,6 +61,7 @@
     "plist": "1.1.0",
     "plist-merge-patch": "0.1.1",
     "plistlib": "0.2.1",
+    "plugin-migrator": "file:///D:\\work\\operation-shapeshifter\\plugin-migrator-1.0.0.tgz",
     "progress-stream": "1.1.1",
     "properties-parser": "0.2.3",
     "proxy-lib": "0.2.0",
