@@ -5,6 +5,7 @@ import { EventEmitter } from "events";
 import { hook } from "../../common/helpers";
 import { APP_FOLDER_NAME, PACKAGE_JSON_FILE_NAME, LiveSyncTrackActionNames, USER_INTERACTION_NEEDED_EVENT_NAME, DEBUGGER_ATTACHED_EVENT_NAME, DEBUGGER_DETACHED_EVENT_NAME, TrackActionNames } from "../../constants";
 import { FileExtensions, DeviceTypes, DeviceDiscoveryEventNames } from "../../common/constants";
+import { buildAar, migrateIncludeGradle, BuildAarOptions } from "plugin-migrator";
 import { cache } from "../../common/decorators";
 
 const deviceDescriptorPrimaryKey = "identifier";
@@ -513,8 +514,8 @@ export class LiveSyncService extends EventEmitter implements IDebugLiveSyncServi
 	}
 
 	private async startWatcher(projectData: IProjectData, liveSyncData: ILiveSyncInfo): Promise<void> {
-		const pattern = [APP_FOLDER_NAME];
 
+		const pattern = [APP_FOLDER_NAME];
 		if (liveSyncData.watchAllFiles) {
 			const productionDependencies = this.$nodeModulesDependenciesBuilder.getProductionDependencies(projectData.projectDir);
 			pattern.push(PACKAGE_JSON_FILE_NAME);
@@ -551,6 +552,32 @@ export class LiveSyncService extends EventEmitter implements IDebugLiveSyncServi
 								filesToRemove = [];
 
 								const allModifiedFiles = [].concat(currentFilesToSync).concat(currentFilesToRemove);
+								if (liveSyncData.watchAllFiles) {
+									allModifiedFiles.forEach(async (item) => {
+										let matchedItem = item.match(/(.*\/node_modules\/[\w-]+)\/platforms\/android\//)
+										if (matchedItem) {
+											const matchLength = matchedItem[0].length;
+											const matchIndex = item.indexOf(matchedItem[0])
+											const pluginInputOutputPath = item.substr(0, matchIndex + matchLength);
+
+											const pluginPackageJason = require(path.resolve(matchedItem[1], PACKAGE_JSON_FILE_NAME));
+											if (pluginPackageJason && pluginPackageJason.name) {
+												let options: BuildAarOptions = {
+													pluginName: pluginPackageJason.name,
+													platformsAndroidDirPath: pluginInputOutputPath,
+													aarOutputDir: pluginInputOutputPath,
+													tempPluginDirPath: path.join(projectData.platformsDir, "tempPlugin")
+												}
+
+												if (await buildAar(options)) {
+													this.$logger.info(`Built aar for ${pluginPackageJason.name}`);
+												}
+
+												migrateIncludeGradle(options);
+											}
+										}
+									})
+								}
 								const preparedPlatforms: string[] = [];
 								const rebuiltInformation: ILiveSyncBuildInfo[] = [];
 
@@ -634,22 +661,26 @@ export class LiveSyncService extends EventEmitter implements IDebugLiveSyncServi
 
 			const watcher = choki.watch(pattern, watcherOptions)
 				.on("all", async (event: string, filePath: string) => {
+
 					clearTimeout(timeoutTimer);
 
 					filePath = path.join(liveSyncData.projectDir, filePath);
 
 					this.$logger.trace(`Chokidar raised event ${event} for ${filePath}.`);
 
-					if (event === "add" || event === "addDir" || event === "change" /* <--- what to do when change event is raised ? */) {
-						filesToSync.push(filePath);
-					} else if (event === "unlink" || event === "unlinkDir") {
-						filesToRemove.push(filePath);
+					if (!filePath.match(/.*gen_[\w-]+\.aar/)) {
+						if (event === "add" || event === "addDir" || event === "change" /* <--- what to do when change event is raised ? */) {
+							filesToSync.push(filePath);
+						} else if (event === "unlink" || event === "unlinkDir") {
+							filesToRemove.push(filePath);
+						}
 					}
 
 					// Do not sync typescript files directly - wait for javascript changes to occur in order to restart the app only once
 					if (path.extname(filePath) !== FileExtensions.TYPESCRIPT_FILE) {
 						startTimeout();
 					}
+
 				});
 
 			this.liveSyncProcessesInfo[liveSyncData.projectDir].watcherInfo = { watcher, pattern };
