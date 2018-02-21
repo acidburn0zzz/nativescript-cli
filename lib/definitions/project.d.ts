@@ -167,6 +167,17 @@ interface ILocalBuildService {
 	 * @return {Promise<string>} Path to the build output.
 	 */
 	build(platform: string, platformBuildOptions: IPlatformBuildData, platformTemplate?: string): Promise<string>;
+	/**
+	 * Removes build artifacts specific to the platform
+	 * @param {ICleanNativeAppData} data Data describing the clean app process
+	 * @returns {void}
+	 */
+	cleanNativeApp(data: ICleanNativeAppData): Promise<void>;
+}
+
+interface ICleanNativeAppData {
+	projectDir: string;
+	platform: string;
 }
 
 interface IPlatformProjectService extends NodeJS.EventEmitter {
