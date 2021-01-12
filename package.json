@@ -49,7 +49,7 @@
     "ios-mobileprovision-finder": "1.0.10",
     "ios-sim-portable": "3.2.0",
     "lockfile": "1.0.3",
-    "lodash": "4.13.1",
+    "lodash": "4.17.19",
     "log4js": "1.0.1",
     "marked": "0.3.12",
     "marked-terminal": "2.0.0",
