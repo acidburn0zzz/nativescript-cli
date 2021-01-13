@@ -76,7 +76,7 @@
     "universal-analytics": "0.4.15",
     "uuid": "3.0.1",
     "winreg": "0.0.17",
-    "ws": "2.2.0",
+    "ws": "3.3.1",
     "xcode": "https://github.com/NativeScript/node-xcode/archive/1.4.0.tar.gz",
     "xmldom": "0.1.21",
     "xmlhttprequest": "https://github.com/telerik/node-XMLHttpRequest/tarball/master",
