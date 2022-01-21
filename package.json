@@ -50,7 +50,7 @@
     "ios-sim-portable": "3.2.0",
     "lockfile": "1.0.3",
     "lodash": "4.13.1",
-    "log4js": "1.0.1",
+    "log4js": "6.4.0",
     "marked": "0.3.12",
     "marked-terminal": "2.0.0",
     "minimatch": "3.0.2",
