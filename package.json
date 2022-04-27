@@ -98,7 +98,7 @@
     "@types/universal-analytics": "0.4.1",
     "chai": "4.0.2",
     "chai-as-promised": "7.0.0",
-    "grunt": "1.0.1",
+    "grunt": "1.5.2",
     "grunt-contrib-clean": "1.0.0",
     "grunt-contrib-copy": "1.0.0",
     "grunt-contrib-watch": "1.0.0",
